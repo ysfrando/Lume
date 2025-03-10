@@ -4,7 +4,7 @@ import logging
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
-logging.basicConfig(logging.INFO)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def generate_key(key_length=32):
@@ -72,34 +72,40 @@ def encrypt_message(message: str, key: bytes) -> str:
         raise
 
 def decrypt_message(encrypted_message: str, key: bytes) -> str:
-    # Decode the base64-encoded message
-    encrypted_message_bytes = base64.b64decode(encrypted_message)
     
-    # Extract the IV, tag, and ciphertext from the encrypted message
-    iv = encrypted_message_bytes[:12] # First 12 bytes are the IV
-    tag = encrypted_message_bytes[12:28] # Next 16 bytes are the tag
-    ciphertext = encrypted_message_bytes[28:]
+    try:
+        # Decode the base64-encoded message
+        encrypted_message_bytes = base64.b64decode(encrypted_message)
+        
+        # Extract the IV, tag, and ciphertext from the encrypted message
+        iv = encrypted_message_bytes[:12] # First 12 bytes are the IV
+        tag = encrypted_message_bytes[12:28] # Next 16 bytes are the tag
+        ciphertext = encrypted_message_bytes[28:]
+        
+        # Create the AES-GCM cipher with the key and IV
+        cipher = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend)
+        decryptor = cipher.decryptor()
+        
+        # Decrypt the ciphertext and return the decoded message
+        decrypted_message = decryptor.update(ciphertext) + decryptor.finalize()
+        
+        return decrypted_message.decode('utf-8')
+    except Exception as e:
+        logger.errorr(f"Error decrypting message: {e}")
+        raise
+
+if __name__ == "__main__":
+    try:
+        key = generate_key()
+        message = "Hey, how's it going?"
+        encrypted = encrypt_message(message, key)
+        decrypted = decrypt_message(encrypted, key)
+
+        logger.info(f"Original Message: {message}")
+        logger.info(f"Encrypted Message: {encrypted}")
+        logger.info(f"Decrypted Message: {decrypted}")
+        
+        assert message == decrypted, "Decryption failed: Messages don't match!"
     
-    # Create the AES-GCM cipher with the key and IV
-    cipher = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend)
-    decryptor = cipher.decryptor()
-    
-    # Decrypt the ciphertext and return the decoded message
-    decrypted_message = decryptor.update(ciphertext) + decryptor.finalize()
-    
-    return decrypted_message.decode('utf-8')
-
-# Test end-to-end
-message = "Hello, this is a secure message."
-key = generate_key()
-
-# Encrypt the message
-encrypted_message = encrypt_message(message, key)
-print(f"Encrypted: {encrypted_message}")
-
-# Decrypt the message
-decrypted_message = decrypt_message(encrypted_message, key)
-print(f"Decrypted: {decrypted_message}")
-
-# Ensure the decrypted message matches the original
-assert message == decrypted_message, "Decryption failed: The original and decrypted messages do not match!"
+    except Exception as e:
+        logger.error(f"Test failed: {e}")
