@@ -1,16 +1,55 @@
+"""
+Encryption API Server
+=====================
+
+This Flask application provides a RESTful API for cryptographic operations including:
+- Key generation
+- Message encryption
+- Message decryption
+
+The server uses Base64 encoding for key transmission to ensure safe transport
+of binary cryptographic keys over HTTP.
+
+Endpoints:
+----------
+- GET /generate_key: Generate a new encryption key
+- POST /encrypt: Encrypt a message using a provided key
+- POST /decrypt: Decrypt a message using a provided key
+
+Dependencies:
+------------
+- Flask: Web framework
+- Flask-CORS: Cross-Origin Resource Sharing support
+- services: Custom module containing cryptographic functions
+"""
+
 import base64
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from services import generate_key, encrypt_message, decrypt_message
 import logging
 
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Initialize Flask application
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # Enable Cross-Origin Resource Sharing
 
 def decode_key(encoded_key):
+    """
+    Decode a Base64-encoded key into its binary form.
+    
+    Args:
+        encoded_key (str): Base64-encoded cryptographic key
+        
+    Returns:
+        bytes: Decoded binary key
+        
+    Raises:
+        ValueError: If the key is not in valid Base64 format
+    """
     try:
         return base64.b64decode(encoded_key)
     except Exception as e:
@@ -18,6 +57,15 @@ def decode_key(encoded_key):
 
 @app.route('/generate_key', methods=["GET"])
 def api_generate_key():
+    """
+    Generate a new cryptographic key.
+    
+    Returns:
+        JSON: {'key': <base64_encoded_key>}
+        
+    Error responses:
+        500: Internal server error with error message
+    """
     try:
         key = generate_key()
         encoded_key = base64.b64encode(key).decode('utf-8')
@@ -27,20 +75,39 @@ def api_generate_key():
 
 @app.route('/encrypt', methods=["POST"])
 def api_encrypt():
+    """
+    Encrypt a message using the provided key.
+    
+    Expected JSON payload:
+        {
+            'message': String to encrypt,
+            'key': Base64-encoded encryption key
+        }
+        
+    Returns:
+        JSON: {'encrypted_message': <encrypted_result>}
+        
+    Error responses:
+        400: Missing parameters or invalid key format
+        500: Encryption error
+    """
     try:
         data = request.get_json()
         message = data.get('message')
         encoded_key = data.get('key')
         
+        # Validate input parameters
         if not message or not encoded_key:
             return jsonify({'error': 'Message and key are required'}), 400
         
+        # Decode the encryption key
         try:
             key = decode_key(encoded_key)
             logger.info(f"Key length after decode: {len(key)}")
         except Exception as e:
             return jsonify({'error': f'Invalid key format: {str(e)}'}), 400
         
+        # Perform encryption
         encrypted_message = encrypt_message(message, key)
         return jsonify({'encrypted_message': encrypted_message}), 200
 
@@ -50,22 +117,42 @@ def api_encrypt():
 
 @app.route('/decrypt', methods=["POST"])
 def api_decrypt():
+    """
+    Decrypt an encrypted message using the provided key.
+    
+    Expected JSON payload:
+        {
+            'encrypted_message': String to decrypt,
+            'key': Base64-encoded decryption key
+        }
+        
+    Returns:
+        JSON: {'decrypted_message': <decrypted_text>}
+        
+    Error responses:
+        400: Missing parameters, invalid key format, or decryption failure
+        500: Unexpected server error
+    """
     try:
         data = request.get_json()
         encrypted_message = data.get('encrypted_message')
         encoded_key = data.get('key')
         
+        # Validate input parameters
         if not encrypted_message or not encoded_key:
             return jsonify({'error': 'Encrypted message and key are required'}), 400
         
+        # Decode the decryption key
         try:
             key = decode_key(encoded_key)
             logger.info(f"Key length after decode: {len(key)}")
         except Exception as e:
             return jsonify({'error': f'Invalid key format: {str(e)}'}), 400
         
+        # Perform decryption
         decrypted_message = decrypt_message(encrypted_message, key)
         
+        # Handle error response from decryption function
         if decrypted_message.startswith("Error:"):
             return jsonify({'error': decrypted_message}), 400
             
