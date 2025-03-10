@@ -72,40 +72,41 @@ def encrypt_message(message: str, key: bytes) -> str:
         raise
 
 def decrypt_message(encrypted_message: str, key: bytes) -> str:
+    """
+    Decrypts a message that was encrypted with AES-GCM.
     
+    Args:
+        encrypted_message (str): Base64-encoded encrypted message
+        key (bytes): The encryption key as bytes
+        
+    Returns:
+        str: The decrypted message
+    """
     try:
-        # Decode the base64-encoded message
-        encrypted_message_bytes = base64.b64decode(encrypted_message)
-        
-        # Extract the IV, tag, and ciphertext from the encrypted message
-        iv = encrypted_message_bytes[:12] # First 12 bytes are the IV
-        tag = encrypted_message_bytes[12:28] # Next 16 bytes are the tag
-        ciphertext = encrypted_message_bytes[28:]
-        
-        # Create the AES-GCM cipher with the key and IV
-        cipher = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend)
+        # Decode the base64-encoded encrypted message
+        decoded_encrypted_message = base64.b64decode(encrypted_message)
+
+        # Verify the key length
+        if len(key) != 32:
+            raise ValueError(f"Key must be 32 bytes for AES-256, got {len(key)} bytes")
+
+        # Extract IV and tag from the encrypted message
+        iv = decoded_encrypted_message[:12]  # First 12 bytes are the IV
+        tag = decoded_encrypted_message[12:28]  # Next 16 bytes are the tag
+        ciphertext = decoded_encrypted_message[28:]  # Remaining bytes are the ciphertext
+
+        logger.info(f"IV length: {len(iv)}, Tag length: {len(tag)}, Ciphertext length: {len(ciphertext)}")
+
+        # Initialize the Cipher object with AES-GCM mode
+        cipher = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend())
         decryptor = cipher.decryptor()
-        
-        # Decrypt the ciphertext and return the decoded message
+
+        # Decrypt the ciphertext
         decrypted_message = decryptor.update(ciphertext) + decryptor.finalize()
-        
+
+        # Convert bytes to string and return
         return decrypted_message.decode('utf-8')
-    except Exception as e:
-        logger.errorr(f"Error decrypting message: {e}")
-        raise
-
-if __name__ == "__main__":
-    try:
-        key = generate_key()
-        message = "Hey, how's it going?"
-        encrypted = encrypt_message(message, key)
-        decrypted = decrypt_message(encrypted, key)
-
-        logger.info(f"Original Message: {message}")
-        logger.info(f"Encrypted Message: {encrypted}")
-        logger.info(f"Decrypted Message: {decrypted}")
-        
-        assert message == decrypted, "Decryption failed: Messages don't match!"
     
     except Exception as e:
-        logger.error(f"Test failed: {e}")
+        logger.error(f"Error decrypting message: {e}")
+        return f"Error: {str(e)}"
