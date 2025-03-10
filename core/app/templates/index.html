@@ -1,0 +1,81 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Messaging App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <h1>Secure Messaging App</h1>
+    
+    <div class="container">
+        <h2>Key Management</h2>
+        <button id="generate-key">Generate New Key</button>
+        <input type="text" id="key" placeholder="Encryption/Decryption Key" readonly>
+    </div>
+    
+    <div class="container">
+        <h2>Encryption</h2>
+        <textarea id="message" rows="4" placeholder="Enter your message to encrypt"></textarea>
+        <button id="encrypt-btn">Encrypt Message</button>
+    </div>
+    
+    <div class="container">
+        <h2>Decryption</h2>
+        <textarea id="encrypted-message" rows="4" placeholder="Enter encrypted message to decrypt"></textarea>
+        <button id="decrypt-btn">Decrypt Message</button>
+    </div>
+    
+    <div class="container">
+        <h2>Results</h2>
+        <div id="result-output" class="result">Results will appear here...</div>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

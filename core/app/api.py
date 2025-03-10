@@ -23,8 +23,9 @@ Dependencies:
 - services: Custom module containing cryptographic functions
 """
 
+import os
 import base64
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_cors import CORS
 from services import generate_key, encrypt_message, decrypt_message
 import logging
@@ -34,7 +35,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize Flask application
-app = Flask(__name__)
+app = Flask(__name__, 
+            static_folder='static', 
+            template_folder='templates')
+
 CORS(app)  # Enable Cross-Origin Resource Sharing
 
 def decode_key(encoded_key):
@@ -54,6 +58,10 @@ def decode_key(encoded_key):
         return base64.b64decode(encoded_key)
     except Exception as e:
         raise ValueError(f"Invalid key format: {str(e)}")
+
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 @app.route('/generate_key', methods=["GET"])
 def api_generate_key():
