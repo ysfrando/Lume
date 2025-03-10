@@ -1,0 +1,74 @@
+# Compiled files
+*.o
+*.out
+*.class
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.so
+
+# Virtual environment
+.venv/
+venv/
+env/
+*.env
+.env.local
+.env.development
+.env.production
+.env.test
+.envrc
+
+# Logs and runtime files
+logs/
+*.log
+*.pid
+*.seed
+*.state
+*.sqlite3
+*.db
+
+# IDE and editor settings
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~ 
+
+# Git-related
+*.swp
+*.swo
+*.orig
+*.rej
+.DS_Store
+Thumbs.db
+
+# Cloud and security
+.aws/
+.gcloud/
+.terraform/
+secrets.yml
+config.json
+credentials.json
+id_rsa
+id_rsa.pub
+*.pem
+*.crt
+*.key
+
+# Docker & CI/CD
+docker-compose.override.yml
+docker-compose.debug.yml
+node_modules/
+dist/
+build/
+coverage/
+
+# Python package files
+*.egg-info/
+.eggs/
+MANIFEST
+pip-wheel-metadata/

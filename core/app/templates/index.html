@@ -1,81 +1,174 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Messaging App</title>
+    <title>Lume - Secure Self-Destructing Messages</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .container {
-            margin-bottom: 30px;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        h1, h2 {
-            color: #333;
-        }
-        input[type="text"], textarea {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        button {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-right: 10px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        .result {
-            margin-top: 15px;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 4px;
-            word-break: break-all;
-        }
-    </style>
 </head>
 <body>
-    <h1>Secure Messaging App</h1>
-    
     <div class="container">
-        <h2>Key Management</h2>
-        <button id="generate-key">Generate New Key</button>
-        <input type="text" id="key" placeholder="Encryption/Decryption Key" readonly>
-    </div>
-    
-    <div class="container">
-        <h2>Encryption</h2>
-        <textarea id="message" rows="4" placeholder="Enter your message to encrypt"></textarea>
-        <button id="encrypt-btn">Encrypt Message</button>
-    </div>
-    
-    <div class="container">
-        <h2>Decryption</h2>
-        <textarea id="encrypted-message" rows="4" placeholder="Enter encrypted message to decrypt"></textarea>
-        <button id="decrypt-btn">Decrypt Message</button>
-    </div>
-    
-    <div class="container">
-        <h2>Results</h2>
-        <div id="result-output" class="result">Results will appear here...</div>
+        <div class="row no-gutters">
+            <!-- Left sidebar - Conversations -->
+            <div class="col-md-4 border-right">
+                <div class="settings-tray">
+                    <img class="profile-image" src="{{ url_for('static', filename='images/profile.jpg') }}" alt="Profile">
+                    <span class="settings-tray--right">
+                        <i class="material-icons" id="generate-key-btn" title="Generate New Key">vpn_key</i>
+                        <i class="material-icons" id="show-key-btn" title="Show Current Key">visibility</i>
+                        <i class="material-icons" id="settings-btn">settings</i>
+                    </span>
+                </div>
+                
+                <div class="search-box">
+                    <div class="input-wrapper">
+                        <i class="material-icons">search</i>
+                        <input placeholder="Search conversations..." type="text">
+                    </div>
+                </div>
+                
+                <!-- Sample conversations, can be dynamically populated -->
+                <div class="friend-drawer friend-drawer--onhover active" data-conversation="new">
+                    <i class="material-icons profile-placeholder">add_circle</i>
+                    <div class="text">
+                        <h6>New Secure Message</h6>
+                        <p class="text-muted">Create a self-destructing message</p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- We'll populate past conversations here -->
+                <div id="conversations-list">
+                    <!-- Dynamically inserted conversations will go here -->
+                </div>
+            </div>
+            
+            <!-- Right side - Chat area -->
+            <div class="col-md-8">
+                <div class="settings-tray">
+                    <div class="friend-drawer no-gutters friend-drawer--grey">
+                        <i class="material-icons security-icon">security</i>
+                        <div class="text">
+                            <h6 id="current-chat-title">New Secure Message</h6>
+                            <p class="text-muted">Self-destructing, end-to-end encrypted</p>
+                        </div>
+                        <span class="settings-tray--right">
+                            <i class="material-icons" id="share-link-btn" title="Share Link">share</i>
+                            <i class="material-icons" id="destroy-btn" title="Destroy Message">delete_forever</i>
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Create message panel (shown by default) -->
+                <div id="create-message-panel" class="chat-panel">
+                    <div class="secure-message-form">
+                        <h5>Create a Self-Destructing Message</h5>
+                        <div class="form-group">
+                            <label for="message-input">Your Message:</label>
+                            <textarea id="message-input" class="form-control" rows="5" placeholder="Type your secure message here..."></textarea>
+                        </div>
+                        
+                        <div class="security-options">
+                            <div class="form-group">
+                                <label for="expiry-time">Expires after:</label>
+                                <select id="expiry-time" class="form-control">
+                                    <option value="1">1 hour</option>
+                                    <option value="24" selected>24 hours</option>
+                                    <option value="72">3 days</option>
+                                    <option value="168">7 days</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="max-views">Maximum views:</label>
+                                <select id="max-views" class="form-control">
+                                    <option value="1" selected>1 time (burn after reading)</option>
+                                    <option value="3">3 times</option>
+                                    <option value="5">5 times</option>
+                                    <option value="10">10 times</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="encryption-key">
+                            <div class="form-group">
+                                <label for="encryption-key">Encryption Key:</label>
+                                <div class="input-group">
+                                    <input type="text" id="encryption-key" class="form-control" readonly>
+                                    <div class="input-group-append">
+                                        <button id="generate-new-key" class="btn btn-secondary">Generate New</button>
+                                    </div>
+                                </div>
+                                <small class="text-muted">Share this key securely with the recipient</small>
+                            </div>
+                        </div>
+                        
+                        <button id="encrypt-message-btn" class="btn btn-primary btn-block">Create Secure Message</button>
+                    </div>
+                    
+                    <div id="message-result" style="display:none;">
+                        <div class="alert alert-success">
+                            <h5>Message Created Successfully!</h5>
+                            <p>Share this secure link with the recipient:</p>
+                            <div class="input-group mb-3">
+                                <input type="text" id="share-link" class="form-control" readonly>
+                                <div class="input-group-append">
+                                    <button id="copy-link-btn" class="btn btn-outline-secondary">Copy</button>
+                                </div>
+                            </div>
+                            <p class="text-warning">
+                                <i class="material-icons align-middle">warning</i>
+                                Remember to share the encryption key separately through a secure channel!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- View message panel (hidden by default) -->
+                <div id="view-message-panel" class="chat-panel" style="display:none;">
+                    <div class="message-status">
+                        <div class="alert alert-info">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span id="views-left-badge" class="badge badge-warning">1 view left</span>
+                                    <span id="time-left-badge" class="badge badge-danger">Expires in 23h 59m</span>
+                                </div>
+                                <button id="decrypt-btn" class="btn btn-primary">Decrypt Message</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="encrypted-message-display" class="encrypted-content">
+                        <p class="text-center text-muted">
+                            <i class="material-icons large-icon">lock</i><br>
+                            This message is encrypted
+                        </p>
+                        <div class="form-group">
+                            <label for="decryption-key">Enter Decryption Key:</label>
+                            <input type="text" id="decryption-key" class="form-control" placeholder="Paste the decryption key here">
+                        </div>
+                    </div>
+                    
+                    <div id="decrypted-message-display" class="decrypted-content" style="display:none;">
+                        <div class="alert alert-warning">
+                            <i class="material-icons">timer</i> This message will be destroyed when you leave this page.
+                        </div>
+                        <div class="message-content">
+                            <h5>Decrypted Message:</h5>
+                            <p id="decrypted-text" class="p-3 border rounded"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

@@ -23,37 +23,23 @@ Dependencies:
 - services: Custom module containing cryptographic functions
 """
 
-import os
-import base64
-from flask import Flask, request, jsonify, send_from_directory, render_template
+from flask import Blueprint, request, jsonify, render_template
 from flask_cors import CORS
-from services import generate_key, encrypt_message, decrypt_message
+from .services import generate_key, encrypt_message, decrypt_message
+from .models.message import Message
+from .database import db  # Import the db instance
 import logging
+import base64
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize Flask application
-app = Flask(__name__, 
-            static_folder='static', 
-            template_folder='templates')
-
-CORS(app)  # Enable Cross-Origin Resource Sharing
+# Create a Blueprint
+app = Blueprint('api', __name__)
 
 def decode_key(encoded_key):
-    """
-    Decode a Base64-encoded key into its binary form.
-    
-    Args:
-        encoded_key (str): Base64-encoded cryptographic key
-        
-    Returns:
-        bytes: Decoded binary key
-        
-    Raises:
-        ValueError: If the key is not in valid Base64 format
-    """
+    """Decode a Base64-encoded key into its binary form."""
     try:
         return base64.b64decode(encoded_key)
     except Exception as e:
@@ -65,15 +51,7 @@ def index():
 
 @app.route('/generate_key', methods=["GET"])
 def api_generate_key():
-    """
-    Generate a new cryptographic key.
-    
-    Returns:
-        JSON: {'key': <base64_encoded_key>}
-        
-    Error responses:
-        500: Internal server error with error message
-    """
+    """Generate a new cryptographic key."""
     try:
         key = generate_key()
         encoded_key = base64.b64encode(key).decode('utf-8')
@@ -83,26 +61,13 @@ def api_generate_key():
 
 @app.route('/encrypt', methods=["POST"])
 def api_encrypt():
-    """
-    Encrypt a message using the provided key.
-    
-    Expected JSON payload:
-        {
-            'message': String to encrypt,
-            'key': Base64-encoded encryption key
-        }
-        
-    Returns:
-        JSON: {'encrypted_message': <encrypted_result>}
-        
-    Error responses:
-        400: Missing parameters or invalid key format
-        500: Encryption error
-    """
+    """Encrypt a message and store it in the database with expiration settings."""
     try:
         data = request.get_json()
         message = data.get('message')
         encoded_key = data.get('key')
+        expiry_hours = data.get('expiry_hours', 24)  # Default: 24 hours
+        max_views = data.get('max_views', 1)  # Default: 1 view
         
         # Validate input parameters
         if not message or not encoded_key:
@@ -111,49 +76,78 @@ def api_encrypt():
         # Decode the encryption key
         try:
             key = decode_key(encoded_key)
-            logger.info(f"Key length after decode: {len(key)}")
         except Exception as e:
             return jsonify({'error': f'Invalid key format: {str(e)}'}), 400
         
         # Perform encryption
         encrypted_message = encrypt_message(message, key)
-        return jsonify({'encrypted_message': encrypted_message}), 200
+        
+        # Extract the IV from the encrypted message
+        # In your implementation, the IV is the first 12 bytes of the base64-decoded message
+        decoded_encrypted_message = base64.b64decode(encrypted_message)
+        iv = base64.b64encode(decoded_encrypted_message[:12]).decode('utf-8')
+        
+        # Store in database
+        message_id = Message.create_message(
+            encrypted_content=encrypted_message,
+            iv=iv,  # Pass the IV
+            expiry_hours=expiry_hours,
+            max_views=max_views
+        )
+        
+        # Return message ID and encrypted message
+        return jsonify({
+            'message_id': message_id,
+            'encrypted_message': encrypted_message,
+            'expires_in': f"{expiry_hours} hours",
+            'max_views': max_views
+        }), 200
 
     except Exception as e:
         logger.error(f"Encryption error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/message/<message_id>', methods=["GET"])
+def get_message(message_id):
+    """Retrieve a message by ID (doesn't decrypt it yet)."""
+    try:
+        message = Message.get_message(message_id)
+        if not message:
+            return jsonify({'error': 'Message not found or expired'}), 404
+        
+        encrypted_content = message
+        return jsonify({
+            'encrypted_message': encrypted_content,
+            'message_id': message_id
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error retrieving message: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/decrypt', methods=["POST"])
 def api_decrypt():
-    """
-    Decrypt an encrypted message using the provided key.
-    
-    Expected JSON payload:
-        {
-            'encrypted_message': String to decrypt,
-            'key': Base64-encoded decryption key
-        }
-        
-    Returns:
-        JSON: {'decrypted_message': <decrypted_text>}
-        
-    Error responses:
-        400: Missing parameters, invalid key format, or decryption failure
-        500: Unexpected server error
-    """
+    """Decrypt an encrypted message using the provided key."""
     try:
         data = request.get_json()
         encrypted_message = data.get('encrypted_message')
+        message_id = data.get('message_id')  # Optional: if decrypting from stored message
         encoded_key = data.get('key')
         
         # Validate input parameters
         if not encrypted_message or not encoded_key:
             return jsonify({'error': 'Encrypted message and key are required'}), 400
         
+        # If message_id is provided, verify it exists and is still active
+        if message_id:
+            message = Message.get_message(message_id)
+            if not message:
+                return jsonify({'error': 'Message not found or expired'}), 404
+            encrypted_message = message
+        
         # Decode the decryption key
         try:
             key = decode_key(encoded_key)
-            logger.info(f"Key length after decode: {len(key)}")
         except Exception as e:
             return jsonify({'error': f'Invalid key format: {str(e)}'}), 400
         
@@ -169,6 +163,14 @@ def api_decrypt():
     except Exception as e:
         logger.error(f"Decryption error: {str(e)}")
         return jsonify({'error': f"Decryption failed: {str(e)}"}), 400
-    
-if __name__ == '__main__':
-    app.run(debug=True)
+
+# New endpoint for message cleanup (can be triggered manually or by scheduler)
+@app.route('/admin/cleanup', methods=["POST"])
+def cleanup_expired_messages():
+    """Remove expired messages from the database."""
+    try:
+        deleted_count = Message.cleanup_expired()
+        return jsonify({'success': True, 'deleted_count': deleted_count}), 200
+    except Exception as e:
+        logger.error(f"Cleanup error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
